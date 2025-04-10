@@ -15,6 +15,18 @@
 
 @implementation EncryptedInputStream
 
+- (NSStreamStatus)streamStatus {
+    return [_sourceStream streamStatus];
+}
+
+- (NSError *)streamError {
+    return [_sourceStream streamError];
+}
+
+- (BOOL)hasBytesAvailable {
+    return YES;
+}
+
 - (instancetype)initWithInputStream:(NSInputStream *)stream key:(NSData *)key nonce:(NSData *)nonce {
     self = [super init];
     if (self) {
@@ -86,5 +98,34 @@
 - (BOOL)hasBytesAvailable {
     return YES;
 }
+
+- (id)propertyForKey:(NSStreamPropertyKey)key {
+    return [_sourceStream propertyForKey:key];
+}
+
+- (BOOL)setProperty:(id)property forKey:(NSStreamPropertyKey)key {
+    return [_sourceStream setProperty:property forKey:key];
+}
+
+- (void)scheduleInRunLoop:(NSRunLoop *)aRunLoop forMode:(NSRunLoopMode)mode {
+    [_sourceStream scheduleInRunLoop:aRunLoop forMode:mode];
+}
+
+- (void)removeFromRunLoop:(NSRunLoop *)aRunLoop forMode:(NSRunLoopMode)mode {
+    [_sourceStream removeFromRunLoop:aRunLoop forMode:mode];
+}
+
+- (unsigned long long)streamEventTriggerMask {
+    return [_sourceStream streamEventTriggerMask];
+}
+
+- (id)delegate {
+    return [_sourceStream delegate];
+}
+
+- (void)setDelegate:(id<NSStreamDelegate>)delegate {
+    [_sourceStream setDelegate:delegate];
+}
+
 
 @end
