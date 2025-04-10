@@ -3,6 +3,7 @@
 #import <React/RCTEventEmitter.h>
 #import <React/RCTBridgeModule.h>
 #import <Photos/Photos.h>
+#import "EncryptedInputStream.h"
 
 @interface VydiaRNFileUploader : RCTEventEmitter <RCTBridgeModule, NSURLSessionTaskDelegate>
 {
@@ -161,6 +162,14 @@ RCT_EXPORT_METHOD(startUpload:(NSDictionary *)options resolve:(RCTPromiseResolve
     NSDictionary *headers = options[@"headers"];
     NSDictionary *parameters = options[@"parameters"];
 
+    NSDictionary *encryption = options[@"encryption"];
+    NSString *base64Key = encryption[@"key"];
+    NSString *base64Nonce = encryption[@"nonce"];
+
+    NSData *keyData = [[NSData alloc] initWithBase64EncodedString:base64Key options:0];
+    NSData *nonceData = [[NSData alloc] initWithBase64EncodedString:base64Nonce options:0];
+
+
     @try {
         NSURL *requestUrl = [NSURL URLWithString: uploadUrl];
         if (requestUrl == nil) {
@@ -206,7 +215,10 @@ RCT_EXPORT_METHOD(startUpload:(NSDictionary *)options resolve:(RCTPromiseResolve
             [request setHTTPBodyStream: [NSInputStream inputStreamWithData:httpBody]];
             [request setValue:[NSString stringWithFormat:@"%zd", httpBody.length] forHTTPHeaderField:@"Content-Length"];
 
-            uploadTask = [[self urlSession: appGroup] uploadTaskWithStreamedRequest:request];
+            NSInputStream *encryptedStream = [self encryptedInputStreamFromFile:fileURI key:keyData nonce:nonceData];
+            [request setHTTPBodyStream:encryptedStream];
+
+            uploadTask = [[self urlSession:appGroup] uploadTaskWithStreamedRequest:request];
         } else {
             if (parameters.count > 0) {
                 reject(@"RN Uploader", @"Parameters supported only in multipart type", nil);
@@ -371,3 +383,10 @@ totalBytesExpectedToSend:(int64_t)totalBytesExpectedToSend {
 }
 
 @end
+
+- (NSInputStream *)encryptedInputStreamFromFile:(NSString *)fileURI key:(NSData *)key nonce:(NSData *)nonce {
+    NSURL *fileURL = [NSURL URLWithString:fileURI];
+    NSInputStream *inputStream = [NSInputStream inputStreamWithURL:fileURL];
+    return [[EncryptedInputStream alloc] initWithInputStream:inputStream key:key nonce:nonce];
+}
+
