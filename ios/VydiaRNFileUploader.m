@@ -225,10 +225,12 @@ RCT_EXPORT_METHOD(startUpload:(NSDictionary *)options resolve:(RCTPromiseResolve
                 return;
             }
 
-            uploadTask = [[NSInputStream *encryptedStream = [self encryptedInputStreamFromFile:fileURI key:keyData nonce:nonceData];
+            NSInputStream *encryptedStream = [self encryptedInputStreamFromFile:fileURI key:keyData nonce:nonceData];
             [request setHTTPBodyStream:encryptedStream];
-            uploadTask = [[self urlSession:appGroup] uploadTaskWithStreamedRequest:request]; urlSession: appGroup] uploadTaskWithRequest:request fromFile:[NSURL URLWithString: fileURI]];
+
+            uploadTask = [[self urlSession:appGroup] uploadTaskWithStreamedRequest:request];
         }
+
 
         uploadTask.taskDescription = customUploadId ? customUploadId : [NSString stringWithFormat:@"%i", thisUploadId];
 
@@ -384,7 +386,6 @@ totalBytesExpectedToSend:(int64_t)totalBytesExpectedToSend {
     }
 }
 
-@end
 
 - (NSInputStream *)encryptedInputStreamFromFile:(NSString *)fileURI key:(NSData *)key nonce:(NSData *)nonce {
     NSURL *fileURL = [NSURL URLWithString:fileURI];
@@ -392,3 +393,5 @@ totalBytesExpectedToSend:(int64_t)totalBytesExpectedToSend {
     return [[EncryptedInputStream alloc] initWithInputStream:inputStream key:key nonce:nonce];
 }
 
+
+@end
