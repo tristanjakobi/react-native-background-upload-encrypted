@@ -188,7 +188,17 @@ class UploaderModule(val reactContext: ReactApplicationContext) : ReactContextBa
     try {
       val request = if (requestType == "raw") {
         BinaryUploadRequest(this.reactApplicationContext, url!!)
-                .setFileToUpload(filePath!!)
+        .setFileToUpload(filePath!!)
+        if (request is BinaryUploadRequest && options.hasKey("encryption")) {
+          val encryption = options.getMap("encryption")
+          val key = encryption?.getString("key")
+          val nonce = encryption?.getString("nonce")
+
+          if (!key.isNullOrBlank() && !nonce.isNullOrBlank()) {
+              request.setEncryption(key, nonce)
+          }
+        }
+
       } else {
         if (!options.hasKey("field")) {
           promise.reject(java.lang.IllegalArgumentException("field is required field for multipart type."))
