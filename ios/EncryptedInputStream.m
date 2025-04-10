@@ -1,4 +1,3 @@
-
 #import "EncryptedInputStream.h"
 #import <CommonCrypto/CommonCryptor.h>
 
@@ -10,7 +9,6 @@
     NSUInteger _bufferPos;
     NSUInteger _bufferLen;
 }
-
 @end
 
 @implementation EncryptedInputStream
@@ -95,10 +93,6 @@
     return toCopy;
 }
 
-- (BOOL)hasBytesAvailable {
-    return YES;
-}
-
 - (id)propertyForKey:(NSStreamPropertyKey)key {
     return [_sourceStream propertyForKey:key];
 }
@@ -115,10 +109,6 @@
     [_sourceStream removeFromRunLoop:aRunLoop forMode:mode];
 }
 
-- (unsigned long long)streamEventTriggerMask {
-    return [_sourceStream streamEventTriggerMask];
-}
-
 - (id)delegate {
     return [_sourceStream delegate];
 }
@@ -126,6 +116,5 @@
 - (void)setDelegate:(id<NSStreamDelegate>)delegate {
     [_sourceStream setDelegate:delegate];
 }
-
 
 @end
