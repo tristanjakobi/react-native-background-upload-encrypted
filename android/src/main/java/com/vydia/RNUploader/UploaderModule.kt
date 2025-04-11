@@ -327,6 +327,8 @@ class UploaderModule(val reactContext: ReactApplicationContext) : ReactContextBa
 
   @ReactMethod
   fun downloadAndDecrypt(options: ReadableMap, promise: Promise) {
+    Log.d(TAG, "[downloadAndDecrypt] Starting download with options: $options")
+    
     val urlStr = options.getString("url")
     val destPath = options.getString("destination")
     val encryption = options.getMap("encryption")
@@ -334,6 +336,7 @@ class UploaderModule(val reactContext: ReactApplicationContext) : ReactContextBa
     val nonceBase64 = encryption?.getString("nonce")
 
     if (urlStr == null || destPath == null || keyBase64 == null || nonceBase64 == null) {
+      Log.e(TAG, "[downloadAndDecrypt] Missing required parameters")
       promise.reject("invalid_args", "Missing required parameters")
       return
     }
@@ -341,11 +344,15 @@ class UploaderModule(val reactContext: ReactApplicationContext) : ReactContextBa
     val key = android.util.Base64.decode(keyBase64, android.util.Base64.NO_WRAP)
     val nonce = android.util.Base64.decode(nonceBase64, android.util.Base64.NO_WRAP)
 
+    Log.d(TAG, "[downloadAndDecrypt] Starting download from URL: $urlStr")
+
     Thread {
       try {
         val url = URL(urlStr)
         val conn = url.openConnection() as HttpURLConnection
         conn.connect()
+
+        Log.d(TAG, "[downloadAndDecrypt] Connection established, starting download")
 
         val inputStream = conn.inputStream
         val cipher = Cipher.getInstance("AES/CTR/NoPadding")
@@ -353,15 +360,21 @@ class UploaderModule(val reactContext: ReactApplicationContext) : ReactContextBa
         val ivSpec = IvParameterSpec(nonce)
         cipher.init(Cipher.DECRYPT_MODE, secretKey, ivSpec)
 
+        Log.d(TAG, "[downloadAndDecrypt] Cipher initialized, starting decryption")
+
         val decryptedStream = CipherInputStream(inputStream, cipher)
         val outputStream = FileOutputStream(destPath)
 
         val buffer = ByteArray(4096)
         var bytesRead: Int
+        var totalBytesRead = 0L
 
         while (decryptedStream.read(buffer).also { bytesRead = it } != -1) {
           outputStream.write(buffer, 0, bytesRead)
+          totalBytesRead += bytesRead
         }
+
+        Log.d(TAG, "[downloadAndDecrypt] Decryption completed. Total bytes processed: $totalBytesRead")
 
         outputStream.flush()
         outputStream.close()
@@ -369,10 +382,13 @@ class UploaderModule(val reactContext: ReactApplicationContext) : ReactContextBa
         inputStream.close()
         conn.disconnect()
 
+        Log.d(TAG, "[downloadAndDecrypt] Successfully completed download and decryption to: $destPath")
+        
         promise.resolve(Arguments.createMap().apply {
           putString("path", destPath)
         })
       } catch (e: Exception) {
+        Log.e(TAG, "[downloadAndDecrypt] Error during download/decryption", e)
         e.printStackTrace()
         promise.reject("decrypt_failed", e.localizedMessage, e)
       }

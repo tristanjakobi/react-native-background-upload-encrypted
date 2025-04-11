@@ -398,6 +398,8 @@ RCT_EXPORT_METHOD(downloadAndDecrypt:(NSDictionary *)options
                   resolve:(RCTPromiseResolveBlock)resolve
                   rejecter:(RCTPromiseRejectBlock)reject)
 {
+    NSLog(@"[downloadAndDecrypt] Starting download with options: %@", options);
+    
     NSString *urlStr = options[@"url"];
     NSString *destination = options[@"destination"];
     NSDictionary *encryption = options[@"encryption"];
@@ -405,6 +407,7 @@ RCT_EXPORT_METHOD(downloadAndDecrypt:(NSDictionary *)options
     NSString *base64Nonce = encryption[@"nonce"];
 
     if (!urlStr || !destination || !base64Key || !base64Nonce) {
+        NSLog(@"[downloadAndDecrypt] Missing required parameters");
         reject(@"invalid_args", @"Missing required parameters", nil);
         return;
     }
@@ -412,27 +415,36 @@ RCT_EXPORT_METHOD(downloadAndDecrypt:(NSDictionary *)options
     NSData *keyData = [[NSData alloc] initWithBase64EncodedString:base64Key options:0];
     NSData *nonceData = [[NSData alloc] initWithBase64EncodedString:base64Nonce options:0];
     NSURL *url = [NSURL URLWithString:urlStr];
+    
+    NSLog(@"[downloadAndDecrypt] Starting download from URL: %@", urlStr);
 
     NSURLSessionDataTask *task = [[NSURLSession sharedSession]
       dataTaskWithURL:url
       completionHandler:^(NSData *data, NSURLResponse *response, NSError *error) {
 
         if (error) {
+            NSLog(@"[downloadAndDecrypt] Download failed with error: %@", error);
             reject(@"download_failed", error.localizedDescription, error);
             return;
         }
+        
+        NSLog(@"[downloadAndDecrypt] Download completed successfully. Data size: %lu bytes", (unsigned long)data.length);
 
         EncryptedOutputStream *stream = [[EncryptedOutputStream alloc] initWithFilePath:destination
                                                                                      key:keyData
                                                                                    nonce:nonceData];
+        
+        NSLog(@"[downloadAndDecrypt] Starting decryption to path: %@", destination);
 
         NSError *writeErr = nil;
         BOOL ok = [stream writeData:data error:&writeErr];
         [stream close];
 
         if (!ok) {
+            NSLog(@"[downloadAndDecrypt] Decryption failed with error: %@", writeErr);
             reject(@"decryption_failed", writeErr.localizedDescription, writeErr);
         } else {
+            NSLog(@"[downloadAndDecrypt] Decryption completed successfully");
             resolve(@{ @"path": destination });
         }
     }];
