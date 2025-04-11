@@ -64,7 +64,30 @@ const FileStreamer = {
       if (transferId && data.id !== transferId) {
         return;
       }
-      listener(data);
+
+      // Type narrow based on event type
+      switch (eventType) {
+        case 'progress':
+          if ('progress' in data) {
+            listener(data);
+          }
+          break;
+        case 'error':
+          if ('error' in data) {
+            listener(data);
+          }
+          break;
+        case 'completed':
+          if ('responseCode' in data && 'responseBody' in data) {
+            listener(data);
+          }
+          break;
+        case 'cancelled':
+          if ('id' in data) {
+            listener(data);
+          }
+          break;
+      }
     });
   },
 
