@@ -14,6 +14,7 @@
 @property (nonatomic, strong) NSURLSession *session;
 @property (nonatomic, strong) NSMutableDictionary *uploadTasks;
 @property (nonatomic, strong) NSMutableDictionary *downloadTasks;
+@property (nonatomic, strong) NSMutableDictionary *responsesData;
 
 @end
 
@@ -35,7 +36,7 @@ NSURLSession *_urlSession = nil;
   self = [super init];
   if (self) {
     staticEventEmitter = self;
-    _responsesData = [NSMutableDictionary dictionary];
+    self.responsesData = [NSMutableDictionary dictionary];
     NSURLSessionConfiguration *config = [NSURLSessionConfiguration backgroundSessionConfigurationWithIdentifier:@"com.tristan.filestreamer"];
     config.sessionSendsLaunchEvents = YES;
     config.discretionary = NO;
@@ -310,9 +311,9 @@ didCompleteWithError:(NSError *)error {
         [data setObject:[NSNumber numberWithInteger:response.statusCode] forKey:@"responseCode"];
     }
     //Add data that was collected earlier by the didReceiveData method
-    NSMutableData *responseData = _responsesData[@(task.taskIdentifier)];
+    NSMutableData *responseData = self.responsesData[@(task.taskIdentifier)];
     if (responseData) {
-        [_responsesData removeObjectForKey:@(task.taskIdentifier)];
+        [self.responsesData removeObjectForKey:@(task.taskIdentifier)];
         NSString *response = [[NSString alloc] initWithData:responseData encoding:NSUTF8StringEncoding];
         [data setObject:response forKey:@"responseBody"];
     } else {
@@ -352,10 +353,10 @@ totalBytesExpectedToSend:(int64_t)totalBytesExpectedToSend {
         return;
     }
     //Hold returned data so it can be picked up by the didCompleteWithError method later
-    NSMutableData *responseData = _responsesData[@(dataTask.taskIdentifier)];
+    NSMutableData *responseData = self.responsesData[@(dataTask.taskIdentifier)];
     if (!responseData) {
         responseData = [NSMutableData dataWithData:data];
-        _responsesData[@(dataTask.taskIdentifier)] = responseData;
+        self.responsesData[@(dataTask.taskIdentifier)] = responseData;
     } else {
         [responseData appendData:data];
     }
