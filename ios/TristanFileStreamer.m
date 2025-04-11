@@ -11,11 +11,6 @@
 
 @interface TristanFileStreamer () <RCTBridgeModule, NSURLSessionTaskDelegate, NSURLSessionDataDelegate>
 
-@property (nonatomic, strong) NSURLSession *session;
-@property (nonatomic, strong) NSMutableDictionary *uploadTasks;
-@property (nonatomic, strong) NSMutableDictionary *downloadTasks;
-@property (nonatomic, strong) NSMutableDictionary *responsesData;
-
 @end
 
 @implementation TristanFileStreamer
@@ -36,7 +31,6 @@ NSURLSession *_urlSession = nil;
   self = [super init];
   if (self) {
     staticEventEmitter = self;
-    self.responsesData = [NSMutableDictionary dictionary];
     NSURLSessionConfiguration *config = [NSURLSessionConfiguration backgroundSessionConfigurationWithIdentifier:@"com.tristan.filestreamer"];
     config.sessionSendsLaunchEvents = YES;
     config.discretionary = NO;
