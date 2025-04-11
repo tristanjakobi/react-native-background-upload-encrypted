@@ -1,158 +1,90 @@
-declare module 'react-native-background-upload' {
-  import type { EventSubscription } from 'react-native';
+declare module 'tristans-file-streamer' {
+  import { EventSubscription } from 'react-native';
 
-  export interface EventData {
-    id: string;
+  export interface TransferOptions {
+    url: string;
+    path: string;
+    method?: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE';
+    headers?: Record<string, string>;
+    customTransferId?: string;
+    appGroup?: string;
+    notification?: {
+      enabled: boolean;
+      autoClear: boolean;
+      onProgressTitle?: string;
+      onProgressMessage?: string;
+      onCompleteTitle?: string;
+      onCompleteMessage?: string;
+      onErrorTitle?: string;
+      onErrorMessage?: string;
+      onCancelledTitle?: string;
+      onCancelledMessage?: string;
+    };
+    encryption?: {
+      key: string;
+      nonce: string;
+    };
   }
 
-  export interface ProgressData extends EventData {
+  export interface ProgressEvent {
+    id: string;
     progress: number;
   }
 
-  export interface ErrorData extends EventData {
-    error: string;
-  }
-
-  export interface CompletedData extends EventData {
+  export interface CompletedEvent {
+    id: string;
     responseCode: number;
     responseBody: string;
   }
-  export type FileInfo = {
+
+  export interface ErrorEvent {
+    id: string;
+    error: string;
+  }
+
+  export interface CancelledEvent {
+    id: string;
+  }
+
+  export type FileStreamerEvent =
+    | ProgressEvent
+    | CompletedEvent
+    | ErrorEvent
+    | CancelledEvent;
+
+  export interface FileInfo {
     name: string;
     exists: boolean;
     size?: number;
     extension?: string;
     mimeType?: string;
-  };
-
-  export type NotificationOptions = {
-    /**
-     * Enable or diasable notifications. Works only on Android version < 8.0 Oreo. On Android versions >= 8.0 Oreo is required by Google's policy to display a notification when a background service run  { enabled: true }
-     */
-    enabled: boolean;
-    /**
-     * Autoclear notification on complete  { autoclear: true }
-     */
-    autoClear: boolean;
-    /**
-     * Sets android notificaion channel  { notificationChannel: "My-Upload-Service" }
-     */
-    notificationChannel: string;
-    /**
-     * Sets whether or not to enable the notification sound when the upload gets completed with success or error   { enableRingTone: true }
-     */
-    enableRingTone: boolean;
-    /**
-     * Sets notification progress title  { onProgressTitle: "Uploading" }
-     */
-    onProgressTitle: string;
-    /**
-     * Sets notification progress message  { onProgressMessage: "Uploading new video" }
-     */
-    onProgressMessage: string;
-    /**
-     * Sets notification complete title  { onCompleteTitle: "Upload finished" }
-     */
-    onCompleteTitle: string;
-    /**
-     * Sets notification complete message  { onCompleteMessage: "Your video has been uploaded" }
-     */
-    onCompleteMessage: string;
-    /**
-     * Sets notification error title   { onErrorTitle: "Upload error" }
-     */
-    onErrorTitle: string;
-    /**
-     * Sets notification error message   { onErrorMessage: "An error occured while uploading a video" }
-     */
-    onErrorMessage: string;
-    /**
-     * Sets notification cancelled title   { onCancelledTitle: "Upload cancelled" }
-     */
-    onCancelledTitle: string;
-    /**
-     * Sets notification cancelled message   { onCancelledMessage: "Video upload was cancelled" }
-     */
-    onCancelledMessage: string;
-  };
-
-  export interface UploadOptions {
-    url: string;
-    path: string;
-    type?: 'raw' | 'multipart';
-    method?: 'POST' | 'GET' | 'PUT' | 'PATCH' | 'DELETE';
-    customUploadId?: string;
-    headers?: {
-      [index: string]: string;
-    };
-    // Android notification settings
-    notification?: Partial<NotificationOptions>;
-    /**
-     * AppGroup defined in XCode for extensions. Necessary when trying to upload things via this library
-     * in the context of ShareExtension.
-     */
-    appGroup?: string;
-    // Necessary only for multipart type upload
-    field?: string;
-
-    encryption?: {
-      key: string; // base64-encoded AES key
-      nonce: string; // base64-encoded AES nonce (CTR mode)
-    };
   }
 
-  export interface MultipartUploadOptions extends UploadOptions {
-    type: 'multipart';
-    field: string;
-    parameters?: {
-      [index: string]: string;
-    };
-  }
-
-  type uploadId = string;
-
-  export type UploadListenerEvent =
-    | 'progress'
-    | 'error'
-    | 'completed'
-    | 'cancelled';
-
-  export default class Upload {
-    static startUpload(
-      options: UploadOptions | MultipartUploadOptions,
-    ): Promise<uploadId>;
+  export default class FileStreamer {
+    static startUpload(options: TransferOptions): Promise<string>;
+    static startDownload(options: TransferOptions): Promise<string>;
+    static cancelUpload(transferId: string): Promise<boolean>;
+    static cancelDownload(transferId: string): Promise<boolean>;
+    static getFileInfo(path: string): Promise<FileInfo>;
     static addListener(
       event: 'progress',
-      uploadId: uploadId | null,
-      callback: (data: ProgressData) => void,
-    ): EventSubscription;
-    static addListener(
-      event: 'error',
-      uploadId: uploadId | null,
-      callback: (data: ErrorData) => void,
+      transferId: string | null,
+      callback: (data: ProgressEvent) => void,
     ): EventSubscription;
     static addListener(
       event: 'completed',
-      uploadId: uploadId | null,
-      callback: (data: CompletedData) => void,
+      transferId: string | null,
+      callback: (data: CompletedEvent) => void,
+    ): EventSubscription;
+    static addListener(
+      event: 'error',
+      transferId: string | null,
+      callback: (data: ErrorEvent) => void,
     ): EventSubscription;
     static addListener(
       event: 'cancelled',
-      uploadId: uploadId | null,
-      callback: (data: EventData) => void,
+      transferId: string | null,
+      callback: (data: CancelledEvent) => void,
     ): EventSubscription;
-    static getFileInfo(path: string): Promise<FileInfo>;
-    static cancelUpload(uploadId: uploadId): Promise<boolean>;
-    static downloadAndDecrypt(options: {
-      url: string;
-      destination: string;
-      headers?: {
-        [index: string]: string;
-      };
-      encryption: {
-        key: string;
-        nonce: string;
-      };
-    }): Promise<{ path: string }>;
   }
 }
