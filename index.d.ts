@@ -66,25 +66,18 @@ declare module 'tristans-file-streamer' {
     static cancelUpload(transferId: string): Promise<boolean>;
     static cancelDownload(transferId: string): Promise<boolean>;
     static getFileInfo(path: string): Promise<FileInfo>;
-    static addListener(
-      event: 'progress',
+    static addListener<T extends FileStreamerEvent>(
+      event: T extends ProgressEvent
+        ? 'progress'
+        : T extends CompletedEvent
+        ? 'completed'
+        : T extends ErrorEvent
+        ? 'error'
+        : T extends CancelledEvent
+        ? 'cancelled'
+        : never,
       transferId: string | null,
-      callback: (data: ProgressEvent) => void,
-    ): EventSubscription;
-    static addListener(
-      event: 'completed',
-      transferId: string | null,
-      callback: (data: CompletedEvent) => void,
-    ): EventSubscription;
-    static addListener(
-      event: 'error',
-      transferId: string | null,
-      callback: (data: ErrorEvent) => void,
-    ): EventSubscription;
-    static addListener(
-      event: 'cancelled',
-      transferId: string | null,
-      callback: (data: CancelledEvent) => void,
+      callback: (data: T) => void,
     ): EventSubscription;
   }
 }
