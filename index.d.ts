@@ -146,6 +146,9 @@ declare module 'react-native-background-upload' {
     static downloadAndDecrypt(options: {
       url: string;
       destination: string;
+      headers?: {
+        [index: string]: string;
+      };
       encryption: {
         key: string;
         nonce: string;
