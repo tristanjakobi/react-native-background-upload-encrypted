@@ -68,13 +68,13 @@ declare module 'tristans-file-streamer' {
     static getFileInfo(path: string): Promise<FileInfo>;
     static addListener<T extends FileStreamerEvent>(
       event: T extends ProgressEvent
-        ? 'progress'
+        ? 'TristanFileStreamer-progress'
         : T extends CompletedEvent
-        ? 'completed'
+        ? 'TristanFileStreamer-completed'
         : T extends ErrorEvent
-        ? 'error'
+        ? 'TristanFileStreamer-error'
         : T extends CancelledEvent
-        ? 'cancelled'
+        ? 'TristanFileStreamer-cancelled'
         : never,
       transferId: string | null,
       callback: (data: T) => void,
