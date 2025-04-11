@@ -7,6 +7,11 @@ declare module 'tristans-file-streamer' {
     mimeType?: string;
   }
 
+  export interface EncryptionOptions {
+    key: string; // base64-encoded AES key
+    nonce: string; // base64-encoded AES nonce (CTR mode)
+  }
+
   export interface TransferOptions {
     url: string;
     path: string;
@@ -28,6 +33,7 @@ declare module 'tristans-file-streamer' {
       onCancelledMessage?: string;
     };
     appGroup?: string;
+    encryption?: EncryptionOptions;
   }
 
   export interface UploadOptions extends TransferOptions {
