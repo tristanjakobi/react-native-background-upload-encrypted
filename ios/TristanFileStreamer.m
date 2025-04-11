@@ -5,14 +5,19 @@
 #import <Photos/Photos.h>
 #import "EncryptedInputStream.h"
 #import "EncryptedOutputStream.h"
+#import "TristanFileStreamer.h"
+#import <React/RCTLog.h>
+#import <React/RCTUtils.h>
 
-@interface VydiaRNFileUploader : RCTEventEmitter <RCTBridgeModule, NSURLSessionTaskDelegate>
-{
-  NSMutableDictionary *_responsesData;
-}
+@interface TristanFileStreamer () <RCTBridgeModule, NSURLSessionTaskDelegate, NSURLSessionDataDelegate>
+
+@property (nonatomic, strong) NSURLSession *session;
+@property (nonatomic, strong) NSMutableDictionary *uploadTasks;
+@property (nonatomic, strong) NSMutableDictionary *downloadTasks;
+
 @end
 
-@implementation VydiaRNFileUploader
+@implementation TristanFileStreamer
 
 RCT_EXPORT_MODULE();
 
@@ -31,6 +36,12 @@ NSURLSession *_urlSession = nil;
   if (self) {
     staticEventEmitter = self;
     _responsesData = [NSMutableDictionary dictionary];
+    NSURLSessionConfiguration *config = [NSURLSessionConfiguration backgroundSessionConfigurationWithIdentifier:@"com.tristan.filestreamer"];
+    config.sessionSendsLaunchEvents = YES;
+    config.discretionary = NO;
+    self.session = [NSURLSession sessionWithConfiguration:config delegate:self delegateQueue:nil];
+    self.uploadTasks = [NSMutableDictionary dictionary];
+    self.downloadTasks = [NSMutableDictionary dictionary];
   }
   return self;
 }
@@ -145,8 +156,9 @@ RCT_EXPORT_METHOD(getFileInfo:(NSString *)path resolve:(RCTPromiseResolveBlock)r
  *
  * Returns a promise with the string ID of the upload.
  */
-RCT_EXPORT_METHOD(startUpload:(NSDictionary *)options resolve:(RCTPromiseResolveBlock)resolve reject:(RCTPromiseRejectBlock)reject)
-{
+RCT_EXPORT_METHOD(startUpload:(NSDictionary *)options
+                  resolver:(RCTPromiseResolveBlock)resolve
+                  rejecter:(RCTPromiseRejectBlock)reject) {
     int thisUploadId;
     @synchronized(self.class)
     {
@@ -248,16 +260,17 @@ RCT_EXPORT_METHOD(startUpload:(NSDictionary *)options resolve:(RCTPromiseResolve
  * Accepts upload ID as a first argument, this upload will be cancelled
  * Event "cancelled" will be fired when upload is cancelled.
  */
-RCT_EXPORT_METHOD(cancelUpload: (NSString *)cancelUploadId resolve:(RCTPromiseResolveBlock)resolve reject:(RCTPromiseRejectBlock)reject) {
-    [_urlSession getTasksWithCompletionHandler:^(NSArray *dataTasks, NSArray *uploadTasks, NSArray *downloadTasks) {
-        for (NSURLSessionTask *uploadTask in uploadTasks) {
-            if ([uploadTask.taskDescription isEqualToString:cancelUploadId]){
-                // == checks if references are equal, while isEqualToString checks the string value
-                [uploadTask cancel];
-            }
-        }
-    }];
-    resolve([NSNumber numberWithBool:YES]);
+RCT_EXPORT_METHOD(cancelUpload:(NSString *)uploadId
+                  resolver:(RCTPromiseResolveBlock)resolve
+                  rejecter:(RCTPromiseRejectBlock)reject) {
+    NSURLSessionUploadTask *task = self.uploadTasks[uploadId];
+    if (task) {
+        [task cancel];
+        [self.uploadTasks removeObjectForKey:uploadId];
+        resolve(@YES);
+    } else {
+        reject(@"E_INVALID_ARGUMENT", @"Invalid upload ID", nil);
+    }
 }
 
 - (NSData *)createBodyWithBoundary:(NSString *)boundary
@@ -471,6 +484,49 @@ RCT_EXPORT_METHOD(downloadAndDecrypt:(NSDictionary *)options
     [task resume];
 }
 
+RCT_EXPORT_METHOD(startDownload:(NSDictionary *)options
+                  resolver:(RCTPromiseResolveBlock)resolve
+                  rejecter:(RCTPromiseRejectBlock)reject) {
+  NSString *url = options[@"url"];
+  NSString *path = options[@"path"];
+  NSDictionary *headers = options[@"headers"];
+  
+  if (!url || !path) {
+    reject(@"E_INVALID_ARGUMENT", @"URL and path are required", nil);
+    return;
+  }
+  
+  NSURL *fileURL = [NSURL URLWithString:path];
+  NSURL *downloadURL = [NSURL URLWithString:url];
+  
+  NSMutableURLRequest *request = [NSMutableURLRequest requestWithURL:downloadURL];
+  [request setHTTPMethod:@"GET"];
+  
+  if (headers) {
+    [headers enumerateKeysAndObjectsUsingBlock:^(id key, id value, BOOL *stop) {
+      [request setValue:value forHTTPHeaderField:key];
+    }];
+  }
+  
+  NSURLSessionDownloadTask *task = [self.session downloadTaskWithRequest:request];
+  NSString *taskId = [[NSUUID UUID] UUIDString];
+  self.downloadTasks[taskId] = task;
+  
+  [task resume];
+  resolve(taskId);
+}
 
+RCT_EXPORT_METHOD(cancelDownload:(NSString *)downloadId
+                  resolver:(RCTPromiseResolveBlock)resolve
+                  rejecter:(RCTPromiseRejectBlock)reject) {
+  NSURLSessionDownloadTask *task = self.downloadTasks[downloadId];
+  if (task) {
+    [task cancel];
+    [self.downloadTasks removeObjectForKey:downloadId];
+    resolve(@YES);
+  } else {
+    reject(@"E_INVALID_ARGUMENT", @"Invalid download ID", nil);
+  }
+}
 
 @end

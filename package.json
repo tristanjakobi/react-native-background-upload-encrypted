@@ -1,7 +1,7 @@
 {
-  "name": "react-native-background-upload",
+  "name": "tristans-file-streamer",
   "version": "7.0.3",
-  "description": "Cross platform http post file uploader with android and iOS background support",
+  "description": "A fork of react-native-background-upload with enhanced file streaming capabilities for both upload and download operations",
   "main": "src/index.js",
   "scripts": {
     "lint": "yarn lint:ci --fix",
@@ -11,13 +11,15 @@
   },
   "repository": {
     "type": "git",
-    "url": "https://github.com/Vydia/react-native-background-upload.git"
+    "url": "https://github.com/tristan/react-native-background-upload.git"
   },
   "keywords": [
     "NSURLSession",
     "UploadService",
     "background",
     "upload",
+    "download",
+    "file-streamer",
     "react-native",
     "react"
   ],
