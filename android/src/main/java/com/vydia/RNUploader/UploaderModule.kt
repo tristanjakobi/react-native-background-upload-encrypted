@@ -21,6 +21,16 @@ import net.gotev.uploadservice.protocols.multipart.MultipartUploadRequest
 import okhttp3.OkHttpClient
 import java.io.File
 import java.util.concurrent.TimeUnit
+import java.net.HttpURLConnection
+import java.net.URL
+import java.io.FileOutputStream
+import java.io.InputStream
+import java.security.SecureRandom
+import javax.crypto.Cipher
+import javax.crypto.CipherInputStream
+import javax.crypto.spec.IvParameterSpec
+import javax.crypto.spec.SecretKeySpec
+
 
 class UploaderModule(val reactContext: ReactApplicationContext) : ReactContextBaseJavaModule(reactContext), LifecycleEventListener {
   private val TAG = "UploaderBridge"
@@ -314,6 +324,63 @@ class UploaderModule(val reactContext: ReactApplicationContext) : ReactContextBa
       promise.reject(exc)
     }
   }
+
+  @ReactMethod
+  fun downloadAndDecrypt(options: ReadableMap, promise: Promise) {
+    val urlStr = options.getString("url")
+    val destPath = options.getString("destination")
+    val encryption = options.getMap("encryption")
+    val keyBase64 = encryption?.getString("key")
+    val nonceBase64 = encryption?.getString("nonce")
+
+    if (urlStr == null || destPath == null || keyBase64 == null || nonceBase64 == null) {
+      promise.reject("invalid_args", "Missing required parameters")
+      return
+    }
+
+    val key = android.util.Base64.decode(keyBase64, android.util.Base64.NO_WRAP)
+    val nonce = android.util.Base64.decode(nonceBase64, android.util.Base64.NO_WRAP)
+
+    Thread {
+      try {
+        val url = URL(urlStr)
+        val conn = url.openConnection() as HttpURLConnection
+        conn.connect()
+
+        val inputStream = conn.inputStream
+        val cipher = Cipher.getInstance("AES/CTR/NoPadding")
+        val secretKey = SecretKeySpec(key, "AES")
+        val ivSpec = IvParameterSpec(nonce)
+        cipher.init(Cipher.DECRYPT_MODE, secretKey, ivSpec)
+
+        val decryptedStream = CipherInputStream(inputStream, cipher)
+        val outputStream = FileOutputStream(destPath)
+
+        val buffer = ByteArray(4096)
+        var bytesRead: Int
+
+        while (decryptedStream.read(buffer).also { bytesRead = it } != -1) {
+          outputStream.write(buffer, 0, bytesRead)
+        }
+
+        outputStream.flush()
+        outputStream.close()
+        decryptedStream.close()
+        inputStream.close()
+        conn.disconnect()
+
+        promise.resolve(Arguments.createMap().apply {
+          putString("path", destPath)
+        })
+      } catch (e: Exception) {
+        e.printStackTrace()
+        promise.reject("decrypt_failed", e.localizedMessage, e)
+      }
+    }.start()
+  }
+
+
+
 
   // Customize the notification channel as you wish. This is only for a bare minimum example
   private fun createNotificationChannel() {
