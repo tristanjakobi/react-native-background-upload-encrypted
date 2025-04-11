@@ -7,15 +7,12 @@ declare module 'tristans-file-streamer' {
     mimeType?: string;
   }
 
-  export interface UploadOptions {
+  export interface TransferOptions {
     url: string;
     path: string;
     method?: string;
-    type?: 'raw' | 'multipart';
-    customUploadId?: string;
     headers?: Record<string, string>;
-    field?: string;
-    parameters?: Record<string, string>;
+    customTransferId?: string;
     notification?: {
       enabled?: boolean;
       autoClear?: boolean;
@@ -30,29 +27,15 @@ declare module 'tristans-file-streamer' {
       onCancelledTitle?: string;
       onCancelledMessage?: string;
     };
-    useUtf8Charset?: boolean;
     appGroup?: string;
   }
 
-  export interface DownloadOptions {
-    url: string;
-    path: string;
-    method?: string;
-    headers?: Record<string, string>;
-    notification?: {
-      enabled?: boolean;
-      autoClear?: boolean;
-      notificationChannel?: string;
-      enableRingTone?: boolean;
-      onProgressTitle?: string;
-      onProgressMessage?: string;
-      onCompleteTitle?: string;
-      onCompleteMessage?: string;
-      onErrorTitle?: string;
-      onErrorMessage?: string;
-      onCancelledTitle?: string;
-      onCancelledMessage?: string;
-    };
+  export interface UploadOptions extends TransferOptions {
+    useUtf8Charset?: boolean;
+  }
+
+  export interface DownloadOptions extends TransferOptions {
+    // Add any download-specific options here
   }
 
   export interface ProgressEvent {
@@ -75,18 +58,17 @@ declare module 'tristans-file-streamer' {
     id: string;
   }
 
-  export type UploadEvent = 'progress' | 'error' | 'completed' | 'cancelled';
-  export type DownloadEvent = 'progress' | 'error' | 'completed' | 'cancelled';
+  export type TransferEvent = 'progress' | 'error' | 'completed' | 'cancelled';
 
   const FileStreamer: {
     startUpload(options: UploadOptions): Promise<string>;
     startDownload(options: DownloadOptions): Promise<string>;
-    cancelUpload(uploadId: string): Promise<boolean>;
-    cancelDownload(downloadId: string): Promise<boolean>;
+    cancelUpload(transferId: string): Promise<boolean>;
+    cancelDownload(transferId: string): Promise<boolean>;
     getFileInfo(path: string): Promise<FileInfo>;
     addListener(
-      eventType: UploadEvent | DownloadEvent,
-      uploadId: string,
+      eventType: TransferEvent,
+      transferId: string,
       listener: (
         data: ProgressEvent | ErrorEvent | CompletedEvent | CancelledEvent,
       ) => void,

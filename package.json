@@ -1,6 +1,6 @@
 {
   "name": "tristans-file-streamer",
-  "version": "7.0.3",
+  "version": "7.1.0",
   "description": "A fork of react-native-background-upload with enhanced file streaming capabilities for both upload and download operations",
   "main": "src/index.js",
   "scripts": {

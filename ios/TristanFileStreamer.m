@@ -54,10 +54,10 @@ NSURLSession *_urlSession = nil;
 
 - (NSArray<NSString *> *)supportedEvents {
     return @[
-        @"RNFileUploader-progress",
-        @"RNFileUploader-error",
-        @"RNFileUploader-cancelled",
-        @"RNFileUploader-completed"
+        @"TristanFileStreamer-progress",
+        @"TristanFileStreamer-error",
+        @"TristanFileStreamer-cancelled",
+        @"TristanFileStreamer-completed"
     ];
 }
 
@@ -168,12 +168,9 @@ RCT_EXPORT_METHOD(startUpload:(NSDictionary *)options
     NSString *uploadUrl = options[@"url"];
     __block NSString *fileURI = options[@"path"];
     NSString *method = options[@"method"] ?: @"POST";
-    NSString *uploadType = options[@"type"] ?: @"raw";
-    NSString *fieldName = options[@"field"];
-    NSString *customUploadId = options[@"customUploadId"];
+    NSString *customTransferId = options[@"customTransferId"];
     NSString *appGroup = options[@"appGroup"];
     NSDictionary *headers = options[@"headers"];
-    NSDictionary *parameters = options[@"parameters"];
 
     NSDictionary *encryption = options[@"encryption"];
     NSString *base64Key = encryption[@"key"];
@@ -181,7 +178,6 @@ RCT_EXPORT_METHOD(startUpload:(NSDictionary *)options
 
     NSData *keyData = [[NSData alloc] initWithBase64EncodedString:base64Key options:0];
     NSData *nonceData = [[NSData alloc] initWithBase64EncodedString:base64Nonce options:0];
-
 
     @try {
         NSURL *requestUrl = [NSURL URLWithString: uploadUrl];
@@ -201,7 +197,6 @@ RCT_EXPORT_METHOD(startUpload:(NSDictionary *)options
             }
         }];
 
-
         // asset library files have to be copied over to a temp file.  they can't be uploaded directly
         if ([fileURI hasPrefix:@"assets-library"]) {
             dispatch_group_t group = dispatch_group_create();
@@ -218,34 +213,11 @@ RCT_EXPORT_METHOD(startUpload:(NSDictionary *)options
             dispatch_group_wait(group, DISPATCH_TIME_FOREVER);
         }
 
-        NSURLSessionDataTask *uploadTask;
+        NSInputStream *encryptedStream = [self encryptedInputStreamFromFile:fileURI key:keyData nonce:nonceData];
+        [request setHTTPBodyStream:encryptedStream];
 
-        if ([uploadType isEqualToString:@"multipart"]) {
-            NSString *uuidStr = [[NSUUID UUID] UUIDString];
-            [request setValue:[NSString stringWithFormat:@"multipart/form-data; boundary=%@", uuidStr] forHTTPHeaderField:@"Content-Type"];
-
-            NSData *httpBody = [self createBodyWithBoundary:uuidStr path:fileURI parameters: parameters fieldName:fieldName];
-            [request setHTTPBodyStream: [NSInputStream inputStreamWithData:httpBody]];
-            [request setValue:[NSString stringWithFormat:@"%zd", httpBody.length] forHTTPHeaderField:@"Content-Length"];
-
-            NSInputStream *encryptedStream = [self encryptedInputStreamFromFile:fileURI key:keyData nonce:nonceData];
-            [request setHTTPBodyStream:encryptedStream];
-
-            uploadTask = [[self urlSession:appGroup] uploadTaskWithStreamedRequest:request];
-        } else {
-            if (parameters.count > 0) {
-                reject(@"RN Uploader", @"Parameters supported only in multipart type", nil);
-                return;
-            }
-
-            NSInputStream *encryptedStream = [self encryptedInputStreamFromFile:fileURI key:keyData nonce:nonceData];
-            [request setHTTPBodyStream:encryptedStream];
-
-            uploadTask = [[self urlSession:appGroup] uploadTaskWithStreamedRequest:request];
-        }
-
-
-        uploadTask.taskDescription = customUploadId ? customUploadId : [NSString stringWithFormat:@"%i", thisUploadId];
+        NSURLSessionDataTask *uploadTask = [[self urlSession:appGroup] uploadTaskWithStreamedRequest:request];
+        uploadTask.taskDescription = customTransferId ? customTransferId : [NSString stringWithFormat:@"%i", thisUploadId];
 
         [uploadTask resume];
         resolve(uploadTask.taskDescription);
@@ -349,15 +321,15 @@ didCompleteWithError:(NSError *)error {
 
     if (error == nil)
     {
-        [self _sendEventWithName:@"RNFileUploader-completed" body:data];
+        [self _sendEventWithName:@"TristanFileStreamer-completed" body:data];
     }
     else
     {
         [data setObject:error.localizedDescription forKey:@"error"];
         if (error.code == NSURLErrorCancelled) {
-            [self _sendEventWithName:@"RNFileUploader-cancelled" body:data];
+            [self _sendEventWithName:@"TristanFileStreamer-cancelled" body:data];
         } else {
-            [self _sendEventWithName:@"RNFileUploader-error" body:data];
+            [self _sendEventWithName:@"TristanFileStreamer-error" body:data];
         }
     }
 }
@@ -372,7 +344,7 @@ totalBytesExpectedToSend:(int64_t)totalBytesExpectedToSend {
     {
         progress = 100.0 * (float)totalBytesSent / (float)totalBytesExpectedToSend;
     }
-    [self _sendEventWithName:@"RNFileUploader-progress" body:@{ @"id": task.taskDescription, @"progress": [NSNumber numberWithFloat:progress] }];
+    [self _sendEventWithName:@"TristanFileStreamer-progress" body:@{ @"id": task.taskDescription, @"progress": [NSNumber numberWithFloat:progress] }];
 }
 
 - (void)URLSession:(NSURLSession *)session dataTask:(NSURLSessionDataTask *)dataTask didReceiveData:(NSData *)data {
@@ -487,33 +459,42 @@ RCT_EXPORT_METHOD(downloadAndDecrypt:(NSDictionary *)options
 RCT_EXPORT_METHOD(startDownload:(NSDictionary *)options
                   resolver:(RCTPromiseResolveBlock)resolve
                   rejecter:(RCTPromiseRejectBlock)reject) {
-  NSString *url = options[@"url"];
-  NSString *path = options[@"path"];
-  NSDictionary *headers = options[@"headers"];
-  
-  if (!url || !path) {
-    reject(@"E_INVALID_ARGUMENT", @"URL and path are required", nil);
-    return;
-  }
-  
-  NSURL *fileURL = [NSURL URLWithString:path];
-  NSURL *downloadURL = [NSURL URLWithString:url];
-  
-  NSMutableURLRequest *request = [NSMutableURLRequest requestWithURL:downloadURL];
-  [request setHTTPMethod:@"GET"];
-  
-  if (headers) {
-    [headers enumerateKeysAndObjectsUsingBlock:^(id key, id value, BOOL *stop) {
-      [request setValue:value forHTTPHeaderField:key];
-    }];
-  }
-  
-  NSURLSessionDownloadTask *task = [self.session downloadTaskWithRequest:request];
-  NSString *taskId = [[NSUUID UUID] UUIDString];
-  self.downloadTasks[taskId] = task;
-  
-  [task resume];
-  resolve(taskId);
+    NSString *url = options[@"url"];
+    NSString *path = options[@"path"];
+    NSString *method = options[@"method"] ?: @"GET";
+    NSString *customTransferId = options[@"customTransferId"];
+    NSString *appGroup = options[@"appGroup"];
+    NSDictionary *headers = options[@"headers"];
+    
+    if (!url || !path) {
+        reject(@"E_INVALID_ARGUMENT", @"URL and path are required", nil);
+        return;
+    }
+    
+    NSURL *fileURL = [NSURL URLWithString:path];
+    NSURL *downloadURL = [NSURL URLWithString:url];
+    
+    NSMutableURLRequest *request = [NSMutableURLRequest requestWithURL:downloadURL];
+    [request setHTTPMethod:method];
+    
+    if (headers) {
+        [headers enumerateKeysAndObjectsUsingBlock:^(id key, id value, BOOL *stop) {
+            if ([value respondsToSelector:@selector(stringValue)]) {
+                value = [value stringValue];
+            }
+            if ([value isKindOfClass:[NSString class]]) {
+                [request setValue:value forHTTPHeaderField:key];
+            }
+        }];
+    }
+    
+    NSURLSessionDownloadTask *task = [[self urlSession:appGroup] downloadTaskWithRequest:request];
+    NSString *taskId = customTransferId ? customTransferId : [[NSUUID UUID] UUIDString];
+    task.taskDescription = taskId;
+    self.downloadTasks[taskId] = task;
+    
+    [task resume];
+    resolve(taskId);
 }
 
 RCT_EXPORT_METHOD(cancelDownload:(NSString *)downloadId

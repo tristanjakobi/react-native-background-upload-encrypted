@@ -1,6 +1,6 @@
 // @flow
 /**
- * Handles HTTP background file uploads from an iOS or Android device.
+ * Handles HTTP background file transfers (upload and download) from an iOS or Android device.
  */
 import {
   NativeModules,
@@ -47,21 +47,21 @@ const FileStreamer = {
     return TristanFileStreamer.startDownload(options);
   },
 
-  cancelUpload(uploadId) {
-    return TristanFileStreamer.cancelUpload(uploadId);
+  cancelUpload(transferId) {
+    return TristanFileStreamer.cancelUpload(transferId);
   },
 
-  cancelDownload(downloadId) {
-    return TristanFileStreamer.cancelDownload(downloadId);
+  cancelDownload(transferId) {
+    return TristanFileStreamer.cancelDownload(transferId);
   },
 
   getFileInfo(path) {
     return TristanFileStreamer.getFileInfo(path);
   },
 
-  addListener(eventType, uploadId, listener) {
+  addListener(eventType, transferId, listener) {
     return eventEmitter.addListener(eventType, (data) => {
-      if (uploadId && data.id !== uploadId) {
+      if (transferId && data.id !== transferId) {
         return;
       }
       listener(data);
