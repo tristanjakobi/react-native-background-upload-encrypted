@@ -398,17 +398,20 @@ RCT_EXPORT_METHOD(downloadAndDecrypt:(NSDictionary *)options
                   resolve:(RCTPromiseResolveBlock)resolve
                   rejecter:(RCTPromiseRejectBlock)reject)
 {
-    NSString *urlStr = options[@"url"];
-    NSString *destination = options[@"destination"];
+    NSLog(@"[RNFileUploader] downloadAndDecrypt called with options: %@", options);
+
+    NSString *urlString = options[@"url"];
+    NSString *destinationPath = options[@"destination"];
     NSDictionary *encryption = options[@"encryption"];
-    NSString *base64Key = encryption[@"key"];
-    NSString *base64Nonce = encryption[@"nonce"];
+    NSString *keyBase64 = encryption[@"key"];
+    NSString *nonceBase64 = encryption[@"nonce"];
 
-    if (!urlStr || !destination || !base64Key || !base64Nonce) {
-        reject(@"invalid_args", @"Missing required parameters", nil);
-        return;
+    // validate
+    if (!urlString || !destinationPath || !keyBase64 || !nonceBase64) {
+      reject(@"E_INVALID_ARGUMENT", @"Missing required parameters", nil);
+      return;
     }
-
+    
     NSData *keyData = [[NSData alloc] initWithBase64EncodedString:base64Key options:0];
     NSData *nonceData = [[NSData alloc] initWithBase64EncodedString:base64Nonce options:0];
     NSURL *url = [NSURL URLWithString:urlStr];
