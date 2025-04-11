@@ -445,11 +445,15 @@ RCT_EXPORT_METHOD(downloadAndDecrypt:(NSDictionary *)options
         
         NSLog(@"[downloadAndDecrypt] Download completed successfully. Data size: %lu bytes", (unsigned long)data.length);
 
-        EncryptedOutputStream *stream = [[EncryptedOutputStream alloc] initWithFilePath:destination
+        // Clean the destination path by removing file:// prefix if present
+        NSString *cleanedPath = [destination stringByReplacingOccurrencesOfString:@"file://" withString:@""];
+        NSLog(@"[downloadAndDecrypt] Writing to cleaned path: %@", cleanedPath);
+
+        EncryptedOutputStream *stream = [[EncryptedOutputStream alloc] initWithFilePath:cleanedPath
                                                                                      key:keyData
                                                                                    nonce:nonceData];
         
-        NSLog(@"[downloadAndDecrypt] Starting decryption to path: %@", destination);
+        NSLog(@"[downloadAndDecrypt] Starting decryption to path: %@", cleanedPath);
 
         NSError *writeErr = nil;
         BOOL ok = [stream writeData:data error:&writeErr];

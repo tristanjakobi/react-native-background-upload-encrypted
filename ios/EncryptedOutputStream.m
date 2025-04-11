@@ -32,7 +32,14 @@
 }
 
 - (BOOL)writeData:(NSData *)data error:(NSError **)error {
-    if (!_cryptor || !_outputStream) return NO;
+    if (!_cryptor || !_outputStream) {
+        if (error) {
+            *error = [NSError errorWithDomain:@"EncryptedOutputStream"
+                                         code:-1
+                                     userInfo:@{ NSLocalizedDescriptionKey: @"Missing cryptor or output stream" }];
+        }
+        return NO;
+    }
 
     NSMutableData *outBuffer = [NSMutableData dataWithLength:data.length];
     size_t outMoved = 0;
@@ -54,7 +61,16 @@
     }
 
     NSInteger written = [_outputStream write:outBuffer.bytes maxLength:outMoved];
-    return (written == outMoved);
+    if (written != outMoved) {
+        if (error) {
+            *error = [NSError errorWithDomain:@"EncryptedOutputStream"
+                                         code:-2
+                                     userInfo:@{ NSLocalizedDescriptionKey: @"Failed to write decrypted data to output stream" }];
+        }
+        return NO;
+    }
+    
+    return YES;
 }
 
 - (void)close {
