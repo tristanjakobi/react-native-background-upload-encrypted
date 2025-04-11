@@ -143,5 +143,13 @@ declare module 'react-native-background-upload' {
     ): EventSubscription;
     static getFileInfo(path: string): Promise<FileInfo>;
     static cancelUpload(uploadId: uploadId): Promise<boolean>;
+    static downloadAndDecrypt(options: {
+      url: string;
+      destination: string;
+      encryption: {
+        key: string;
+        nonce: string;
+      };
+    }): Promise<{ path: string }>;
   }
 }
