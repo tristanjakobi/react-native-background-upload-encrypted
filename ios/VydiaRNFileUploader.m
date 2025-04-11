@@ -405,6 +405,7 @@ RCT_EXPORT_METHOD(downloadAndDecrypt:(NSDictionary *)options
     NSDictionary *encryption = options[@"encryption"];
     NSString *base64Key = encryption[@"key"];
     NSString *base64Nonce = encryption[@"nonce"];
+    NSDictionary *headers = options[@"headers"];
 
     if (!urlStr || !destination || !base64Key || !base64Nonce) {
         NSLog(@"[downloadAndDecrypt] Missing required parameters");
@@ -418,8 +419,22 @@ RCT_EXPORT_METHOD(downloadAndDecrypt:(NSDictionary *)options
     
     NSLog(@"[downloadAndDecrypt] Starting download from URL: %@", urlStr);
 
+    NSMutableURLRequest *request = [NSMutableURLRequest requestWithURL:url];
+    
+    // Add headers if provided
+    if (headers) {
+        [headers enumerateKeysAndObjectsUsingBlock:^(id  _Nonnull key, id  _Nonnull val, BOOL * _Nonnull stop) {
+            if ([val respondsToSelector:@selector(stringValue)]) {
+                val = [val stringValue];
+            }
+            if ([val isKindOfClass:[NSString class]]) {
+                [request setValue:val forHTTPHeaderField:key];
+            }
+        }];
+    }
+
     NSURLSessionDataTask *task = [[NSURLSession sharedSession]
-      dataTaskWithURL:url
+      dataTaskWithRequest:request
       completionHandler:^(NSData *data, NSURLResponse *response, NSError *error) {
 
         if (error) {

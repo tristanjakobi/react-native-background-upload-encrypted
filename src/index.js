@@ -108,6 +108,7 @@ export const startEncryptedUpload = ({ key, nonce, ...uploadOptions }) => {
  * @param {{
  *   url: string,
  *   destination: string,
+ *   headers?: Object.<string, string>,
  *   encryption: {
  *     key: string,     // base64
  *     nonce: string    // base64

@@ -334,6 +334,7 @@ class UploaderModule(val reactContext: ReactApplicationContext) : ReactContextBa
     val encryption = options.getMap("encryption")
     val keyBase64 = encryption?.getString("key")
     val nonceBase64 = encryption?.getString("nonce")
+    val headers = options.getMap("headers")
 
     if (urlStr == null || destPath == null || keyBase64 == null || nonceBase64 == null) {
       Log.e(TAG, "[downloadAndDecrypt] Missing required parameters")
@@ -350,6 +351,18 @@ class UploaderModule(val reactContext: ReactApplicationContext) : ReactContextBa
       try {
         val url = URL(urlStr)
         val conn = url.openConnection() as HttpURLConnection
+        
+        // Add headers if provided
+        if (headers != null) {
+          val keys = headers.keySetIterator()
+          while (keys.hasNextKey()) {
+            val key = keys.nextKey()
+            if (headers.getType(key) == ReadableType.String) {
+              conn.setRequestProperty(key, headers.getString(key))
+            }
+          }
+        }
+        
         conn.connect()
 
         Log.d(TAG, "[downloadAndDecrypt] Connection established, starting download")
