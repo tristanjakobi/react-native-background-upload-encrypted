@@ -4,6 +4,7 @@
 #import <React/RCTBridgeModule.h>
 #import <Photos/Photos.h>
 #import "EncryptedInputStream.h"
+#import "EncryptedOutputStream.h"
 
 @interface VydiaRNFileUploader : RCTEventEmitter <RCTBridgeModule, NSURLSessionTaskDelegate>
 {
@@ -392,6 +393,52 @@ totalBytesExpectedToSend:(int64_t)totalBytesExpectedToSend {
     NSInputStream *inputStream = [NSInputStream inputStreamWithURL:fileURL];
     return [[EncryptedInputStream alloc] initWithInputStream:inputStream key:key nonce:nonce];
 }
+
+RCT_EXPORT_METHOD(downloadAndDecrypt:(NSDictionary *)options
+                  resolve:(RCTPromiseResolveBlock)resolve
+                  rejecter:(RCTPromiseRejectBlock)reject)
+{
+    NSString *urlStr = options[@"url"];
+    NSString *destination = options[@"destination"];
+    NSDictionary *encryption = options[@"encryption"];
+    NSString *base64Key = encryption[@"key"];
+    NSString *base64Nonce = encryption[@"nonce"];
+
+    if (!urlStr || !destination || !base64Key || !base64Nonce) {
+        reject(@"invalid_args", @"Missing required parameters", nil);
+        return;
+    }
+
+    NSData *keyData = [[NSData alloc] initWithBase64EncodedString:base64Key options:0];
+    NSData *nonceData = [[NSData alloc] initWithBase64EncodedString:base64Nonce options:0];
+    NSURL *url = [NSURL URLWithString:urlStr];
+
+    NSURLSessionDataTask *task = [[NSURLSession sharedSession]
+      dataTaskWithURL:url
+      completionHandler:^(NSData *data, NSURLResponse *response, NSError *error) {
+        if (error) {
+            reject(@"download_failed", error.localizedDescription, error);
+            return;
+        }
+
+        EncryptedOutputStream *stream = [[EncryptedOutputStream alloc] initWithFilePath:destination
+                                                                                     key:keyData
+                                                                                   nonce:nonceData];
+
+        NSError *writeErr = nil;
+        BOOL ok = [stream writeData:data error:&writeErr];
+        [stream close];
+
+        if (!ok) {
+            reject(@"decryption_failed", writeErr.localizedDescription, writeErr);
+        } else {
+            resolve(@{ @"path": destination });
+        }
+    }];
+
+    [task resume];
+}
+
 
 
 @end

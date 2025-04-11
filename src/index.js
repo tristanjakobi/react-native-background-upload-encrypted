@@ -103,10 +103,27 @@ export const startEncryptedUpload = ({ key, nonce, ...uploadOptions }) => {
   });
 };
 
+/**
+ * Downloads an encrypted file and decrypts it using AES-256-CTR.
+ * @param {{
+ *   url: string,
+ *   destination: string,
+ *   encryption: {
+ *     key: string,     // base64
+ *     nonce: string    // base64
+ *   }
+ * }} options
+ * @returns {Promise<{ path: string }>}
+ */
+export const downloadAndDecrypt = (options) => {
+  return NativeModule.downloadAndDecrypt(options);
+};
+
 export default {
   startUpload,
   startEncryptedUpload,
   cancelUpload,
   addListener,
   getFileInfo,
+  downloadAndDecrypt,
 };

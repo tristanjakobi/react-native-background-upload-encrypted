@@ -117,4 +117,28 @@
     [_sourceStream setDelegate:delegate];
 }
 
+- (NSData *)decryptAESCTRData:(NSData *)data withKey:(NSData *)key iv:(NSData *)iv {
+    size_t dataOutAvailable = data.length;
+    void *dataOut = malloc(dataOutAvailable);
+    size_t dataOutMoved = 0;
+
+    CCCryptorRef cryptor = NULL;
+    CCCryptorCreateWithMode(kCCDecrypt,
+                            kCCModeCTR,
+                            kCCAlgorithmAES,
+                            ccNoPadding,
+                            iv.bytes,
+                            key.bytes,
+                            key.length,
+                            NULL, 0, 0,
+                            kCCModeOptionCTR_BE,
+                            &cryptor);
+
+    CCCryptorUpdate(cryptor, data.bytes, data.length, dataOut, dataOutAvailable, &dataOutMoved);
+    CCCryptorRelease(cryptor);
+
+    NSData *decrypted = [NSData dataWithBytesNoCopy:dataOut length:dataOutMoved];
+    return decrypted;
+}
+
 @end
